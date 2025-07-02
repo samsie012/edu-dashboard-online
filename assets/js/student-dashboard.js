@@ -1,9 +1,9 @@
-
 document.addEventListener('DOMContentLoaded', function() {
     loadUserInfo();
-    loadCourses();
-    loadAssignments();
-    loadGrades();
+    loadStudentCourses();
+    loadStudentAssignments();
+    loadStudentGrades();
+    loadStudentQuizzes();
 });
 
 function loadUserInfo() {
@@ -17,7 +17,7 @@ function loadUserInfo() {
         .catch(error => console.error('Error loading user info:', error));
 }
 
-function loadCourses() {
+function loadStudentCourses() {
     fetch('php/get-student-courses.php')
         .then(response => response.json())
         .then(data => {
@@ -28,7 +28,7 @@ function loadCourses() {
         .catch(error => console.error('Error loading courses:', error));
 }
 
-function loadAssignments() {
+function loadStudentAssignments() {
     fetch('php/get-student-assignments.php')
         .then(response => response.json())
         .then(data => {
@@ -39,7 +39,7 @@ function loadAssignments() {
         .catch(error => console.error('Error loading assignments:', error));
 }
 
-function loadGrades() {
+function loadStudentGrades() {
     fetch('php/get-student-grades.php')
         .then(response => response.json())
         .then(data => {
@@ -48,6 +48,17 @@ function loadGrades() {
             }
         })
         .catch(error => console.error('Error loading grades:', error));
+}
+
+function loadStudentQuizzes() {
+    fetch('php/get-student-quizzes.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayStudentQuizzes(data.quizzes);
+            }
+        })
+        .catch(error => console.error('Error loading quizzes:', error));
 }
 
 function displayCourses(courses) {
@@ -123,4 +134,62 @@ function displayGrades(grades) {
         `;
         container.appendChild(gradeItem);
     });
+}
+
+function displayStudentQuizzes(quizzes) {
+    const assignmentsContainer = document.getElementById('assignmentsContainer');
+    
+    if (!document.getElementById('quizzesSection')) {
+        const quizHeader = document.createElement('div');
+        quizHeader.id = 'quizzesSection';
+        quizHeader.innerHTML = `
+            <h5 class="mb-3 mt-4">Available Quizzes</h5>
+            <div id="quizzesContent"></div>
+        `;
+        assignmentsContainer.appendChild(quizHeader);
+    }
+    
+    const quizzesContent = document.getElementById('quizzesContent');
+    quizzesContent.innerHTML = '';
+
+    if (quizzes.length === 0) {
+        quizzesContent.innerHTML = '<p class="text-muted">No quizzes available</p>';
+        return;
+    }
+
+    quizzes.forEach(quiz => {
+        const quizItem = document.createElement('div');
+        quizItem.className = 'border-bottom pb-3 mb-3';
+        
+        let statusBadge = '';
+        let actionButton = '';
+        
+        if (quiz.is_completed) {
+            statusBadge = `<span class="badge bg-success">Completed - Score: ${quiz.score}/${quiz.total_marks}</span>`;
+            actionButton = '<button class="btn btn-secondary btn-sm" disabled>Completed</button>';
+        } else if (quiz.attempt_date) {
+            statusBadge = '<span class="badge bg-warning">In Progress</span>';
+            actionButton = `<button class="btn btn-primary btn-sm" onclick="takeQuiz(${quiz.id})">Continue Quiz</button>`;
+        } else {
+            statusBadge = '<span class="badge bg-info">Available</span>';
+            actionButton = `<button class="btn btn-success btn-sm" onclick="takeQuiz(${quiz.id})">Start Quiz</button>`;
+        }
+        
+        quizItem.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1">${quiz.title} ${statusBadge}</h6>
+                    <p class="text-muted mb-1">Course: ${quiz.course_name}</p>
+                    <p class="text-muted mb-1">Time Limit: ${quiz.time_limit} minutes</p>
+                    <p class="text-muted mb-0">Total Marks: ${quiz.total_marks}</p>
+                </div>
+                ${actionButton}
+            </div>
+        `;
+        quizzesContent.appendChild(quizItem);
+    });
+}
+
+function takeQuiz(quizId) {
+    window.location.href = `take-quiz.html?quiz_id=${quizId}`;
 }

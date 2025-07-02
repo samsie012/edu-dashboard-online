@@ -71,6 +71,7 @@ function displayTeacherCourses(courses) {
                     <div class="d-grid gap-2">
                         <button class="btn btn-primary">Manage Course</button>
                         <button class="btn btn-outline-secondary">Create Assignment</button>
+                        <button class="btn btn-success" onclick="window.location.href='quiz-management.html'">Manage Quizzes</button>
                     </div>
                 </div>
             </div>

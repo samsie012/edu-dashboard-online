@@ -1,12 +1,33 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from 'react';
+import LoginForm from '../components/LoginForm';
+import StudentDashboard from '../components/StudentDashboard';
+import TeacherDashboard from '../components/TeacherDashboard';
+import AdminDashboard from '../components/AdminDashboard';
 
 const Index = () => {
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+
+  const handleLogin = (userData) => {
+    setUser(userData);
+    setUserRole(userData.role);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setUserRole(null);
+  };
+
+  if (!user) {
+    return <LoginForm onLogin={handleLogin} />;
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div>
+      {userRole === 'student' && <StudentDashboard user={user} onLogout={handleLogout} />}
+      {userRole === 'teacher' && <TeacherDashboard user={user} onLogout={handleLogout} />}
+      {userRole === 'admin' && <AdminDashboard user={user} onLogout={handleLogout} />}
     </div>
   );
 };

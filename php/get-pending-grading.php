@@ -7,7 +7,7 @@ header('Content-Type: application/json');
 
 try {
     $stmt = $pdo->prepare("
-        SELECT a.title, u.name as student, c.name as course, sa.submission_date as submitted 
+        SELECT sa.id, a.title, u.name as student, c.name as course, sa.submission_date as submitted 
         FROM assignments a 
         JOIN courses c ON a.course_id = c.id 
         JOIN student_assignments sa ON a.id = sa.assignment_id 

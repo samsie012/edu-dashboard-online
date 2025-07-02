@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', function() {
     loadUserInfo();
     loadStudentCourses();
@@ -82,7 +83,7 @@ function displayCourses(courses) {
                             <div class="progress-bar progress-bar-custom" style="width: ${course.progress}%"></div>
                         </div>
                     </div>
-                    <button class="btn btn-primary w-100">View Course</button>
+                    <button class="btn btn-primary w-100" onclick="viewCourse(${course.id})">View Course</button>
                 </div>
             </div>
         `;
@@ -104,9 +105,15 @@ function displayAssignments(assignments) {
                     <p class="text-muted mb-1">${assignment.course}</p>
                     <small class="text-muted">Due: ${assignment.due_date}</small>
                 </div>
-                <span class="badge ${assignment.status === 'submitted' ? 'status-submitted' : 'status-pending'}">
-                    ${assignment.status}
-                </span>
+                <div class="d-flex align-items-center">
+                    <span class="badge ${assignment.status === 'submitted' ? 'status-submitted' : 'status-pending'} me-2">
+                        ${assignment.status}
+                    </span>
+                    ${assignment.status !== 'submitted' ? 
+                        `<button class="btn btn-sm btn-primary" onclick="submitAssignment(${assignment.id})">Submit</button>` : 
+                        ''
+                    }
+                </div>
             </div>
         `;
         container.appendChild(assignmentItem);
@@ -188,6 +195,19 @@ function displayStudentQuizzes(quizzes) {
         `;
         quizzesContent.appendChild(quizItem);
     });
+}
+
+function viewCourse(courseId) {
+    alert(`Viewing course details for course ID ${courseId} - This would show course materials, syllabus, and resources`);
+}
+
+function submitAssignment(assignmentId) {
+    const submission = prompt('Enter your assignment submission or file path:');
+    if (submission) {
+        alert(`Assignment submitted successfully! (Assignment ID: ${assignmentId})`);
+        // In a real application, this would upload files and update the database
+        loadStudentAssignments();
+    }
 }
 
 function takeQuiz(quizId) {

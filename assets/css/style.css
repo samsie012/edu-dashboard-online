@@ -1,0 +1,71 @@
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.min-vh-100 {
+    min-height: 100vh;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+}
+
+.btn-primary {
+    background-color: #4f46e5;
+    border-color: #4f46e5;
+}
+
+.btn-primary:hover {
+    background-color: #4338ca;
+    border-color: #4338ca;
+}
+
+.progress-bar-custom {
+    background-color: #4f46e5;
+}
+
+.nav-tabs .nav-link.active {
+    color: #4f46e5;
+    border-color: #4f46e5;
+}
+
+.nav-tabs .nav-link {
+    color: #6b7280;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #374151;
+}
+
+.status-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.status-submitted {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.grade-display {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #4f46e5;
+}
+
+.dashboard-header {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: white;
+    padding: 2rem 0;
+}
+
+.course-card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease-in-out;
+}

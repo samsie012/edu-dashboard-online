@@ -5,12 +5,14 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAdminCourses();
     loadClasses();
     loadTeachers();
+    loadAllStudents();
 });
 
 let currentEditingUser = null;
 let currentEditingCourse = null;
 let currentEditingClass = null;
 let teachers = [];
+let allStudents = [];
 
 function loadUserInfo() {
     fetch('php/get-user-info.php')
@@ -82,6 +84,18 @@ function loadTeachers() {
         .catch(error => console.error('Error loading teachers:', error));
 }
 
+function loadAllStudents() {
+    fetch('php/get-all-students.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allStudents = data.students;
+                populateStudentSelect();
+            }
+        })
+        .catch(error => console.error('Error loading students:', error));
+}
+
 function populateTeacherSelect() {
     const select = document.getElementById('courseTeacher');
     select.innerHTML = '<option value="">Select Teacher</option>';
@@ -91,6 +105,19 @@ function populateTeacherSelect() {
         option.textContent = teacher.name;
         select.appendChild(option);
     });
+}
+
+function populateStudentSelect() {
+    const select = document.getElementById('selectStudent');
+    if (select) {
+        select.innerHTML = '<option value="">Choose a student...</option>';
+        allStudents.forEach(student => {
+            const option = document.createElement('option');
+            option.value = student.id;
+            option.textContent = `${student.name} (${student.email})`;
+            select.appendChild(option);
+        });
+    }
 }
 
 function displayUsers(users) {
@@ -168,15 +195,25 @@ function displayClasses(classes) {
                     <span class="badge ${classItem.status === 'active' ? 'bg-success' : 'bg-warning'}">${classItem.status}</span>
                 </div>
                 <div>
-                    <button class="btn btn-sm btn-outline-info me-2" onclick="viewClassDetails(${classItem.id})">
-                        <i class="fas fa-eye"></i> View
-                    </button>
-                    <button class="btn btn-sm btn-outline-primary me-2" onclick="editClass(${classItem.id})">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteClass(${classItem.id})">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
+                    <div class="btn-group mb-2" role="group">
+                        <button class="btn btn-sm btn-outline-success" onclick="showAssignTeacherModal(${classItem.id})">
+                            <i class="fas fa-user-plus"></i> Assign Teacher
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="showAssignStudentModal(${classItem.id})">
+                            <i class="fas fa-user-graduate"></i> Assign Student
+                        </button>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-info" onclick="viewClassDetails(${classItem.id})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editClass(${classItem.id})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteClass(${classItem.id})">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -466,7 +503,12 @@ function displayClassDetails(data) {
                     <h6>Assigned Teachers (${data.teachers.length})</h6>
                     <div class="list-group">
                         ${data.teachers.map(teacher => `
-                            <div class="list-group-item">${teacher.name} (${teacher.email})</div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                ${teacher.name} (${teacher.email})
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeTeacherFromClass(${classInfo.id}, ${teacher.id})">
+                                    Remove
+                                </button>
+                            </div>
                         `).join('')}
                     </div>
                 </div>
@@ -474,7 +516,12 @@ function displayClassDetails(data) {
                     <h6>Enrolled Students (${data.students.length})</h6>
                     <div class="list-group" style="max-height: 200px; overflow-y: auto;">
                         ${data.students.map(student => `
-                            <div class="list-group-item">${student.name} (${student.email})</div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                ${student.name} (${student.email})
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeStudentFromClass(${classInfo.id}, ${student.id})">
+                                    Remove
+                                </button>
+                            </div>
                         `).join('')}
                     </div>
                 </div>
@@ -518,6 +565,147 @@ function deleteClass(classId) {
         .catch(error => {
             console.error('Error:', error);
             alert('Error deleting class');
+        });
+    }
+}
+
+function showAssignTeacherModal(classId) {
+    document.getElementById('assignTeacherClassId').value = classId;
+    const select = document.getElementById('selectTeacher');
+    select.innerHTML = '<option value="">Choose a teacher...</option>';
+    teachers.forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.id;
+        option.textContent = teacher.name;
+        select.appendChild(option);
+    });
+    const modal = new bootstrap.Modal(document.getElementById('assignTeacherModal'));
+    modal.show();
+}
+
+function showAssignStudentModal(classId) {
+    document.getElementById('assignStudentClassId').value = classId;
+    populateStudentSelect();
+    const modal = new bootstrap.Modal(document.getElementById('assignStudentModal'));
+    modal.show();
+}
+
+function assignTeacherToClass() {
+    const classId = document.getElementById('assignTeacherClassId').value;
+    const teacherId = document.getElementById('selectTeacher').value;
+
+    if (!teacherId) {
+        alert('Please select a teacher');
+        return;
+    }
+
+    fetch('php/assign-teacher-to-class.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            class_id: parseInt(classId), 
+            teacher_id: parseInt(teacherId) 
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('assignTeacherModal')).hide();
+            loadClasses();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error assigning teacher');
+    });
+}
+
+function assignStudentToClass() {
+    const classId = document.getElementById('assignStudentClassId').value;
+    const studentId = document.getElementById('selectStudent').value;
+
+    if (!studentId) {
+        alert('Please select a student');
+        return;
+    }
+
+    fetch('php/assign-student-to-class.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            class_id: parseInt(classId), 
+            student_id: parseInt(studentId) 
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('assignStudentModal')).hide();
+            loadClasses();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error assigning student');
+    });
+}
+
+function removeTeacherFromClass(classId, teacherId) {
+    if (confirm('Are you sure you want to remove this teacher from the class?')) {
+        fetch('php/remove-teacher-from-class.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                class_id: classId, 
+                teacher_id: teacherId 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                viewClassDetails(classId); // Refresh the details
+                loadClasses(); // Refresh the class list
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error removing teacher');
+        });
+    }
+}
+
+function removeStudentFromClass(classId, studentId) {
+    if (confirm('Are you sure you want to remove this student from the class?')) {
+        fetch('php/remove-student-from-class.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                class_id: classId, 
+                student_id: studentId 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                viewClassDetails(classId); // Refresh the details
+                loadClasses(); // Refresh the class list
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error removing student');
         });
     }
 }

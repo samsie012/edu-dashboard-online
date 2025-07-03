@@ -26,13 +26,19 @@ try {
     $stmt->execute();
     $assignments = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
 
+    // Get class count
+    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM classes WHERE status = 'active'");
+    $stmt->execute();
+    $classes = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+
     echo json_encode([
         'success' => true,
         'stats' => [
             'students' => $students,
             'teachers' => $teachers,
             'courses' => $courses,
-            'assignments' => $assignments
+            'assignments' => $assignments,
+            'classes' => $classes
         ]
     ]);
 } catch (PDOException $e) {

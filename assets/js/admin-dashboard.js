@@ -1,14 +1,15 @@
-
 document.addEventListener('DOMContentLoaded', function() {
     loadUserInfo();
     loadOverviewStats();
     loadUsers();
     loadAdminCourses();
+    loadClasses();
     loadTeachers();
 });
 
 let currentEditingUser = null;
 let currentEditingCourse = null;
+let currentEditingClass = null;
 let teachers = [];
 
 function loadUserInfo() {
@@ -29,8 +30,8 @@ function loadOverviewStats() {
             if (data.success) {
                 document.getElementById('totalStudents').textContent = data.stats.students;
                 document.getElementById('totalTeachers').textContent = data.stats.teachers;
+                document.getElementById('totalClasses').textContent = data.stats.classes || 0;
                 document.getElementById('totalCourses').textContent = data.stats.courses;
-                document.getElementById('totalAssignments').textContent = data.stats.assignments;
             }
         })
         .catch(error => console.error('Error loading stats:', error));
@@ -56,6 +57,17 @@ function loadAdminCourses() {
             }
         })
         .catch(error => console.error('Error loading courses:', error));
+}
+
+function loadClasses() {
+    fetch('php/get-all-classes.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayClasses(data.classes);
+            }
+        })
+        .catch(error => console.error('Error loading classes:', error));
 }
 
 function loadTeachers() {
@@ -140,7 +152,38 @@ function displayAdminCourses(courses) {
     });
 }
 
-// Modal Functions
+function displayClasses(classes) {
+    const container = document.getElementById('classesContainer');
+    container.innerHTML = '';
+
+    classes.forEach(classItem => {
+        const classDiv = document.createElement('div');
+        classDiv.className = 'border-bottom pb-3 mb-3';
+        classDiv.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1">${classItem.name}</h6>
+                    <p class="text-muted mb-1">Year: ${classItem.year} | Cohort: ${classItem.cohort}</p>
+                    <p class="text-muted mb-1">Teachers: ${classItem.teachers} | Students: ${classItem.students} | Courses: ${classItem.courses}</p>
+                    <span class="badge ${classItem.status === 'active' ? 'bg-success' : 'bg-warning'}">${classItem.status}</span>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-info me-2" onclick="viewClassDetails(${classItem.id})">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary me-2" onclick="editClass(${classItem.id})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteClass(${classItem.id})">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(classDiv);
+    });
+}
+
 function showAddUserModal(role = '') {
     currentEditingUser = null;
     document.getElementById('userModalTitle').textContent = 'Add User';
@@ -319,6 +362,162 @@ function deleteCourse(courseId) {
         .catch(error => {
             console.error('Error:', error);
             alert('Error deleting course');
+        });
+    }
+}
+
+function showAddClassModal() {
+    currentEditingClass = null;
+    document.getElementById('classModalTitle').textContent = 'Create Class';
+    document.getElementById('classForm').reset();
+    document.getElementById('classId').value = '';
+    document.getElementById('classStatus').value = 'active';
+    const modal = new bootstrap.Modal(document.getElementById('classModal'));
+    modal.show();
+}
+
+function editClass(classId) {
+    currentEditingClass = classId;
+    document.getElementById('classModalTitle').textContent = 'Edit Class';
+    document.getElementById('classId').value = classId;
+    
+    // Here you would typically fetch class details and populate the form
+    const modal = new bootstrap.Modal(document.getElementById('classModal'));
+    modal.show();
+}
+
+function saveClass() {
+    const formData = {
+        name: document.getElementById('className').value,
+        year: document.getElementById('classYear').value,
+        cohort: document.getElementById('classCohort').value,
+        description: document.getElementById('classDescription').value,
+        status: document.getElementById('classStatus').value
+    };
+
+    if (!formData.name || !formData.year || !formData.cohort) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    let url = 'php/create-class.php';
+    if (currentEditingClass) {
+        url = 'php/edit-class.php';
+        formData.class_id = currentEditingClass;
+    }
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('classModal')).hide();
+            loadClasses();
+            loadOverviewStats();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving class');
+    });
+}
+
+function viewClassDetails(classId) {
+    fetch(`php/get-class-details.php?class_id=${classId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayClassDetails(data);
+                const modal = new bootstrap.Modal(document.getElementById('classDetailsModal'));
+                modal.show();
+            } else {
+                alert('Error loading class details: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading class details');
+        });
+}
+
+function displayClassDetails(data) {
+    const classInfo = data.class;
+    document.getElementById('classDetailsTitle').textContent = `${classInfo.name} - Details`;
+    
+    const content = document.getElementById('classDetailsContent');
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Class Information</h6>
+                <p><strong>Name:</strong> ${classInfo.name}</p>
+                <p><strong>Year:</strong> ${classInfo.year}</p>
+                <p><strong>Cohort:</strong> ${classInfo.cohort}</p>
+                <p><strong>Status:</strong> ${classInfo.status}</p>
+                <p><strong>Description:</strong> ${classInfo.description || 'No description'}</p>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <h6>Assigned Teachers (${data.teachers.length})</h6>
+                    <div class="list-group">
+                        ${data.teachers.map(teacher => `
+                            <div class="list-group-item">${teacher.name} (${teacher.email})</div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <h6>Enrolled Students (${data.students.length})</h6>
+                    <div class="list-group" style="max-height: 200px; overflow-y: auto;">
+                        ${data.students.map(student => `
+                            <div class="list-group-item">${student.name} (${student.email})</div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <h6>Courses in this Class (${data.courses.length})</h6>
+            <div class="row">
+                ${data.courses.map(course => `
+                    <div class="col-md-4 mb-2">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">${course.name}</h6>
+                                <p class="card-text">${course.description || 'No description'}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function deleteClass(classId) {
+    if (confirm('Are you sure you want to delete this class? This will also delete all related courses and enrollments.')) {
+        fetch('php/delete-class.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ class_id: classId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Class deleted successfully!');
+                loadClasses();
+                loadOverviewStats();
+            } else {
+                alert('Error deleting class: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting class');
         });
     }
 }

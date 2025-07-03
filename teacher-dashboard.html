@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,7 +25,10 @@
     <div class="container mt-4">
         <ul class="nav nav-tabs" id="dashboardTabs">
             <li class="nav-item">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#courses">Courses</button>
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#classes">My Classes</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#courses">Courses</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link" data-bs-toggle="tab" data-bs-target="#grading">Grading</button>
@@ -37,7 +39,14 @@
         </ul>
 
         <div class="tab-content mt-4">
-            <div class="tab-pane fade show active" id="courses">
+            <div class="tab-pane fade show active" id="classes">
+                <h5 class="mb-3">My Assigned Classes</h5>
+                <div class="row" id="teacherClassesContainer">
+                    <!-- Classes will be loaded here -->
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="courses">
                 <div class="mb-3">
                     <button class="btn btn-primary" onclick="createCourse()">Create New Course</button>
                 </div>
@@ -70,6 +79,43 @@
                 <h5 class="mb-3">Student Management</h5>
                 <div class="row" id="studentManagementContainer">
                     <!-- Student management will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Management Modal -->
+    <div class="modal fade" id="courseManagementModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="courseManagementTitle">Manage Course</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="courseTopicsContainer">
+                        <!-- Course topics will be loaded here -->
+                    </div>
+                    <hr>
+                    <h6>Add New Topic</h6>
+                    <form id="addTopicForm">
+                        <input type="hidden" id="manageCourseId">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="topicTitle" class="form-label">Topic Title</label>
+                                <input type="text" class="form-control" id="topicTitle" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="topicOrder" class="form-label">Order</label>
+                                <input type="number" class="form-control" id="topicOrder" value="1">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="topicDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="topicDescription" rows="3"></textarea>
+                        </div>
+                        <button type="button" class="btn btn-success" onclick="addCourseTopic()">Add Topic</button>
+                    </form>
                 </div>
             </div>
         </div>

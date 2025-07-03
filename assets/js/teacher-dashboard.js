@@ -1,6 +1,6 @@
-
 document.addEventListener('DOMContentLoaded', function() {
     loadUserInfo();
+    loadTeacherClasses();
     loadTeacherCourses();
     loadPendingGrading();
     loadRecentGrades();
@@ -16,6 +16,209 @@ function loadUserInfo() {
             }
         })
         .catch(error => console.error('Error loading user info:', error));
+}
+
+function loadTeacherClasses() {
+    fetch('php/get-teacher-classes.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayTeacherClasses(data.classes);
+            }
+        })
+        .catch(error => console.error('Error loading classes:', error));
+}
+
+function displayTeacherClasses(classes) {
+    const container = document.getElementById('teacherClassesContainer');
+    container.innerHTML = '';
+
+    classes.forEach(classItem => {
+        const classCard = document.createElement('div');
+        classCard.className = 'col-md-6 col-lg-4 mb-4';
+        classCard.innerHTML = `
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">${classItem.name}</h5>
+                    <p class="card-text text-muted">Year: ${classItem.year}</p>
+                    <p class="card-text text-muted">Cohort: ${classItem.cohort}</p>
+                    <p class="card-text text-muted">${classItem.course_count} Courses | ${classItem.student_count} Students</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" onclick="viewClassCourses(${classItem.id}, '${classItem.name}')">View Courses</button>
+                        <button class="btn btn-outline-secondary" onclick="viewStudents(${classItem.id})">View Students</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(classCard);
+    });
+}
+
+function viewClassCourses(classId, className) {
+    fetch(`php/get-class-courses.php?class_id=${classId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayClassCourses(data.courses, className);
+            } else {
+                alert('Error loading courses: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading courses');
+        });
+}
+
+function displayClassCourses(courses, className) {
+    let courseList = `Courses in ${className}:\n\n`;
+    
+    if (courses.length === 0) {
+        courseList += 'No courses assigned to this class yet.';
+    } else {
+        courses.forEach(course => {
+            courseList += `${course.name} (${course.section})\n`;
+            courseList += `Teacher: ${course.teacher_name || 'Not assigned'}\n`;
+            courseList += `Topics: ${course.topic_count}\n\n`;
+        });
+    }
+    
+    if (confirm(courseList + '\nWould you like to manage a specific course?')) {
+        // Show course selection for management
+        showCourseSelectionForManagement(courses);
+    }
+}
+
+function showCourseSelectionForManagement(courses) {
+    if (courses.length === 0) {
+        alert('No courses available to manage.');
+        return;
+    }
+    
+    let selection = 'Select a course to manage:\n\n';
+    courses.forEach((course, index) => {
+        selection += `${index + 1}. ${course.name} (${course.section})\n`;
+    });
+    
+    const choice = prompt(selection + '\nEnter the number of the course you want to manage:');
+    if (choice && !isNaN(choice) && choice >= 1 && choice <= courses.length) {
+        const selectedCourse = courses[choice - 1];
+        manageCourseTopics(selectedCourse.id, selectedCourse.name);
+    }
+}
+
+function manageCourseTopics(courseId, courseName) {
+    document.getElementById('manageCourseId').value = courseId;
+    document.getElementById('courseManagementTitle').textContent = `Manage ${courseName}`;
+    
+    loadCourseTopics(courseId);
+    
+    const modal = new bootstrap.Modal(document.getElementById('courseManagementModal'));
+    modal.show();
+}
+
+function loadCourseTopics(courseId) {
+    fetch(`php/get-course-topics.php?course_id=${courseId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayCourseTopics(data.topics);
+            }
+        })
+        .catch(error => console.error('Error loading topics:', error));
+}
+
+function displayCourseTopics(topics) {
+    const container = document.getElementById('courseTopicsContainer');
+    container.innerHTML = '<h6>Course Topics</h6>';
+    
+    if (topics.length === 0) {
+        container.innerHTML += '<p class="text-muted">No topics added yet.</p>';
+        return;
+    }
+    
+    topics.forEach(topic => {
+        const topicDiv = document.createElement('div');
+        topicDiv.className = 'border-bottom pb-2 mb-2';
+        topicDiv.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1">${topic.title}</h6>
+                    <p class="text-muted mb-1">${topic.description || 'No description'}</p>
+                    <small class="text-muted">Order: ${topic.order_index}</small>
+                </div>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteCourseTopic(${topic.id})">
+                    Delete
+                </button>
+            </div>
+        `;
+        container.appendChild(topicDiv);
+    });
+}
+
+function addCourseTopic() {
+    const courseId = document.getElementById('manageCourseId').value;
+    const title = document.getElementById('topicTitle').value;
+    const description = document.getElementById('topicDescription').value;
+    const orderIndex = document.getElementById('topicOrder').value;
+    
+    if (!title) {
+        alert('Please enter a topic title');
+        return;
+    }
+    
+    fetch('php/manage-course-topic.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'create',
+            course_id: parseInt(courseId),
+            title: title,
+            description: description,
+            order_index: parseInt(orderIndex)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            document.getElementById('addTopicForm').reset();
+            loadCourseTopics(courseId);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding topic');
+    });
+}
+
+function deleteCourseTopic(topicId) {
+    if (confirm('Are you sure you want to delete this topic?')) {
+        fetch('php/manage-course-topic.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'delete',
+                topic_id: topicId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                const courseId = document.getElementById('manageCourseId').value;
+                loadCourseTopics(courseId);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting topic');
+        });
+    }
 }
 
 function loadTeacherCourses() {

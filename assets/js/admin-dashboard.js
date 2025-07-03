@@ -202,6 +202,9 @@ function displayClasses(classes) {
                         <button class="btn btn-sm btn-outline-info" onclick="showAssignStudentModal(${classItem.id})">
                             <i class="fas fa-user-graduate"></i> Assign Student
                         </button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="showAssignCourseModal(${classItem.id})">
+                            <i class="fas fa-book"></i> Assign Course
+                        </button>
                     </div>
                     <div class="btn-group" role="group">
                         <button class="btn btn-sm btn-outline-info" onclick="viewClassDetails(${classItem.id})">
@@ -708,4 +711,62 @@ function removeStudentFromClass(classId, studentId) {
             alert('Error removing student');
         });
     }
+}
+
+function showAssignCourseModal(classId) {
+    document.getElementById('assignCourseClassId').value = classId;
+    
+    // Load unassigned courses
+    fetch('php/get-unassigned-courses.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const select = document.getElementById('selectCourse');
+                select.innerHTML = '<option value="">Choose a course...</option>';
+                data.courses.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course.id;
+                    option.textContent = `${course.name} (${course.section}) - ${course.teacher_name || 'No teacher'}`;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading courses:', error));
+    
+    const modal = new bootstrap.Modal(document.getElementById('assignCourseModal'));
+    modal.show();
+}
+
+function assignCourseToClass() {
+    const classId = document.getElementById('assignCourseClassId').value;
+    const courseId = document.getElementById('selectCourse').value;
+
+    if (!courseId) {
+        alert('Please select a course');
+        return;
+    }
+
+    fetch('php/assign-course-to-class.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            class_id: parseInt(classId), 
+            course_id: parseInt(courseId) 
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('assignCourseModal')).hide();
+            loadClasses();
+            loadAdminCourses();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error assigning course');
+    });
 }

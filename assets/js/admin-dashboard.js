@@ -1,18 +1,15 @@
+
 document.addEventListener('DOMContentLoaded', function() {
     loadUserInfo();
     loadOverviewStats();
     loadUsers();
     loadAdminCourses();
-
-    // Add event listeners for user management buttons
-    const addStudentBtn = document.querySelector('button[onclick*="Add Student"]');
-    const addTeacherBtn = document.querySelector('button[onclick*="Add Teacher"]');
-    const addAdminBtn = document.querySelector('button[onclick*="Add Admin"]');
-    
-    if (addStudentBtn) addStudentBtn.onclick = addStudent;
-    if (addTeacherBtn) addTeacherBtn.onclick = addTeacher;
-    if (addAdminBtn) addAdminBtn.onclick = addAdmin;
+    loadTeachers();
 });
+
+let currentEditingUser = null;
+let currentEditingCourse = null;
+let teachers = [];
 
 function loadUserInfo() {
     fetch('php/get-user-info.php')
@@ -61,6 +58,29 @@ function loadAdminCourses() {
         .catch(error => console.error('Error loading courses:', error));
 }
 
+function loadTeachers() {
+    fetch('php/get-teachers.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                teachers = data.teachers;
+                populateTeacherSelect();
+            }
+        })
+        .catch(error => console.error('Error loading teachers:', error));
+}
+
+function populateTeacherSelect() {
+    const select = document.getElementById('courseTeacher');
+    select.innerHTML = '<option value="">Select Teacher</option>';
+    teachers.forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.id;
+        option.textContent = teacher.name;
+        select.appendChild(option);
+    });
+}
+
 function displayUsers(users) {
     const container = document.getElementById('usersContainer');
     container.innerHTML = '';
@@ -73,11 +93,18 @@ function displayUsers(users) {
                 <div>
                     <h6 class="mb-1">${user.name}</h6>
                     <p class="text-muted mb-1">${user.email}</p>
-                    <span class="badge bg-secondary">${user.role}</span>
+                    <div>
+                        <span class="badge bg-secondary me-2">${user.role}</span>
+                        <span class="badge ${user.status === 'active' ? 'bg-success' : 'bg-warning'}">${user.status || 'active'}</span>
+                    </div>
                 </div>
                 <div>
-                    <button class="btn btn-sm btn-outline-primary me-2" onclick="editUser(${user.id})">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id})">Delete</button>
+                    <button class="btn btn-sm btn-outline-primary me-2" onclick="editUser(${user.id}, '${user.name}', '${user.email}', '${user.role}', '${user.status || 'active'}')">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id})">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
                 </div>
             </div>
         `;
@@ -100,8 +127,12 @@ function displayAdminCourses(courses) {
                     <p class="text-muted mb-0">Students: ${course.students}</p>
                 </div>
                 <div>
-                    <button class="btn btn-sm btn-outline-primary me-2" onclick="editCourse(${course.id})">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCourse(${course.id})">Delete</button>
+                    <button class="btn btn-sm btn-outline-primary me-2" onclick="editCourse(${course.id})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCourse(${course.id})">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
                 </div>
             </div>
         `;
@@ -109,69 +140,80 @@ function displayAdminCourses(courses) {
     });
 }
 
-function addStudent() {
-    const name = prompt('Enter student name:');
-    const email = prompt('Enter student email:');
-    const password = prompt('Enter student password:');
-    
-    if (name && email && password) {
-        createUser(name, email, password, 'student');
+// Modal Functions
+function showAddUserModal(role = '') {
+    currentEditingUser = null;
+    document.getElementById('userModalTitle').textContent = 'Add User';
+    document.getElementById('userForm').reset();
+    document.getElementById('userId').value = '';
+    if (role) {
+        document.getElementById('userRole').value = role;
     }
+    document.getElementById('userStatus').value = 'active';
+    const modal = new bootstrap.Modal(document.getElementById('userModal'));
+    modal.show();
 }
 
-function addTeacher() {
-    const name = prompt('Enter teacher name:');
-    const email = prompt('Enter teacher email:');
-    const password = prompt('Enter teacher password:');
-    
-    if (name && email && password) {
-        createUser(name, email, password, 'teacher');
-    }
+function editUser(id, name, email, role, status) {
+    currentEditingUser = id;
+    document.getElementById('userModalTitle').textContent = 'Edit User';
+    document.getElementById('userId').value = id;
+    document.getElementById('userName').value = name;
+    document.getElementById('userEmail').value = email;
+    document.getElementById('userRole').value = role;
+    document.getElementById('userStatus').value = status;
+    document.getElementById('userPassword').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('userModal'));
+    modal.show();
 }
 
-function addAdmin() {
-    const name = prompt('Enter admin name:');
-    const email = prompt('Enter admin email:');
-    const password = prompt('Enter admin password:');
-    
-    if (name && email && password) {
-        createUser(name, email, password, 'admin');
-    }
-}
+function saveUser() {
+    const formData = {
+        name: document.getElementById('userName').value,
+        email: document.getElementById('userEmail').value,
+        password: document.getElementById('userPassword').value,
+        role: document.getElementById('userRole').value,
+        status: document.getElementById('userStatus').value
+    };
 
-function createUser(name, email, password, role) {
-    fetch('php/create-user.php', {
+    if (!formData.name || !formData.email || !formData.role) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    let url = 'php/create-user.php';
+    if (currentEditingUser) {
+        url = 'php/edit-user.php';
+        formData.user_id = currentEditingUser;
+    } else if (!formData.password) {
+        alert('Password is required for new users');
+        return;
+    }
+
+    fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            name: name,
-            email: email,
-            password: password,
-            role: role
-        })
+        body: JSON.stringify(formData)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(`${role.charAt(0).toUpperCase() + role.slice(1)} created successfully!`);
+            alert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
             loadUsers();
             loadOverviewStats();
         } else {
-            alert('Error creating user: ' + data.message);
+            alert('Error: ' + data.message);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error creating user');
+        alert('Error saving user');
     });
 }
 
-function editUser(userId) {
-    alert(`Edit user functionality for user ID ${userId} - This would open a form to edit user details`);
-}
-
 function deleteUser(userId) {
-    if (confirm('Are you sure you want to delete this user?')) {
+    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
         fetch('php/delete-user.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -194,14 +236,89 @@ function deleteUser(userId) {
     }
 }
 
-function createCourse() {
-    alert('Create course functionality - This would open a form to create a new course and assign it to a teacher');
+function showAddCourseModal() {
+    currentEditingCourse = null;
+    document.getElementById('courseModalTitle').textContent = 'Add Course';
+    document.getElementById('courseForm').reset();
+    document.getElementById('courseId').value = '';
+    populateTeacherSelect();
+    const modal = new bootstrap.Modal(document.getElementById('courseModal'));
+    modal.show();
 }
 
 function editCourse(courseId) {
-    alert(`Edit course functionality for course ID ${courseId} - This would open a form to edit course details`);
+    currentEditingCourse = courseId;
+    document.getElementById('courseModalTitle').textContent = 'Edit Course';
+    document.getElementById('courseId').value = courseId;
+    
+    // Here you would typically fetch course details
+    // For now, we'll show the modal and let user edit
+    populateTeacherSelect();
+    const modal = new bootstrap.Modal(document.getElementById('courseModal'));
+    modal.show();
+}
+
+function saveCourse() {
+    const formData = {
+        name: document.getElementById('courseName').value,
+        description: document.getElementById('courseDescription').value,
+        section: document.getElementById('courseSection').value,
+        teacher_id: document.getElementById('courseTeacher').value
+    };
+
+    if (!formData.name || !formData.teacher_id) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    let url = 'php/create-course.php';
+    if (currentEditingCourse) {
+        url = 'php/edit-course.php';
+        formData.course_id = currentEditingCourse;
+    }
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('courseModal')).hide();
+            loadAdminCourses();
+            loadOverviewStats();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving course');
+    });
 }
 
 function deleteCourse(courseId) {
-    alert(`Delete course functionality for course ID ${courseId} - This would remove the course and all related data`);
+    if (confirm('Are you sure you want to delete this course? This will also delete all related assignments and enrollments.')) {
+        fetch('php/delete-course.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ course_id: courseId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Course deleted successfully!');
+                loadAdminCourses();
+                loadOverviewStats();
+            } else {
+                alert('Error deleting course: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting course');
+        });
+    }
 }

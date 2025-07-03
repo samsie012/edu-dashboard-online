@@ -7,7 +7,7 @@ header('Content-Type: application/json');
 
 try {
     $stmt = $pdo->prepare("
-        SELECT c.name, u.name as teacher, COUNT(e.student_id) as students 
+        SELECT c.id, c.name, c.description, c.section, u.name as teacher, COUNT(e.student_id) as students 
         FROM courses c 
         JOIN users u ON c.teacher_id = u.id 
         LEFT JOIN enrollments e ON c.id = e.course_id 
